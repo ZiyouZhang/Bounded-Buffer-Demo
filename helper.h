@@ -21,7 +21,7 @@
 # include <iostream>
 using namespace std;
 
-# define SEM_KEY 0x50 // Change this number as needed
+# define SEM_KEY 0x4242 // Change this number as needed
 
 union semun {
     int val;               /* used for SETVAL only */
@@ -29,7 +29,7 @@ union semun {
     ushort *array;         /* used for GETALL and SETALL */
 };
 
-int check_arg (char *);
+int check_arg (const char *);
 int sem_create (key_t, int);
 int sem_init (int, int, int);
 void sem_wait (int, short unsigned int);

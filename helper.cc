@@ -10,11 +10,12 @@
 
 # include "helper.h"
 
-int check_arg (char *buffer)
+int check_arg (const char *buffer)
 {
   int i, num = 0, temp = 0;
   if (strlen (buffer) == 0)
     return -1;
+  cout << strlen (buffer) << " len " << endl;
   for (i=0; i < (int) strlen (buffer); i++)
   {
     temp = 0 + buffer[i];
