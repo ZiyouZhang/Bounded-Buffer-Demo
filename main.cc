@@ -1,79 +1,79 @@
-/******************************************************************
- * The Main program with the two functions. A simple
- * example of creating and using a thread is provided.
- ******************************************************************/
-
 #include "helper.h"
+
+#define MUTEX 0
+#define SPACE 1
+#define ITEM 2
+#define PID 3
+#define CID 4
 
 void *producer (void *id);
 void *consumer (void *id);
 
+// Initialise job queue and parameters
+int* job_buffer;
+int n_jobs = 0, in = 0, out = 0, semid = 0, p_id = 0, c_id = 0;
+
+
 int main (int argc, char **argv)
 {
 
-  // Read in and check arguments
-  int s_queue = 0, n_jobs = 0, n_producer = 0, n_consumer = 0;
+  int s_queue = 0, n_producer = 0, n_consumer = 0;
 
-  string arg_string = argv[1];
-  int arguments = check_arg(arg_string.c_str());
-  if (arguments == -1) {
-    cout << "Oh no! Please supply correct form of arguments." << endl;
+  // Read in and check arguments
+  if (argc != 5){
+    cerr << "Oh no! Please supply correct number of arguments." << endl;
     return -1;
-  } else {
-    s_queue = arguments / 1000 % 10;
-    n_jobs = arguments / 100 % 10;
-    n_producer = arguments / 10 % 10;
-    n_consumer = arguments % 10;
   }
 
-  cout << s_queue << n_jobs << n_producer << n_consumer << endl;
-  return 0;
+  s_queue = check_arg(argv[1]);
+  n_jobs = check_arg(argv[2]);
+  n_producer = check_arg(argv[3]);
+  n_consumer = check_arg(argv[4]);
+  if (s_queue == -1 || n_jobs == -1 || n_producer == -1 || n_consumer == -1) {
+    cerr << "Oh no! All arguments should be a positive integer!" << endl;
+    return -1;
+  }
 
-
-  // if (argc != 5){
-  //   cout << "Oh no! Please supply correct number of arguments." << endl;
-  //   return -1;
-  // }
-
-  // int s_queue = 0, n_jobs = 0, n_producer = 0, n_consumer = 0;
-  // s_queue = atoi(argv[1]);
-  // n_jobs = atoi(argv[2]);
-  // n_producer = atoi(argv[3]);
-  // n_consumer = atoi(argv[4]);
-  // if (!(s_queue && n_jobs && n_producer && n_consumer)) {
-  //   cout << "Oh no! All arguments should be a positive integer!" << endl;
-  //   return -1;
-  // }
-
-  // Initialise circular queue
-  int job_buffer[s_queue] = {0};
+  job_buffer = new int[n_jobs];
 
   // Initialise semaphores
-  int mutex = 0, space = 1, item = 2;
-  int sem_id = sem_create(SEM_KEY , 3);
-  if (sem_id == -1) {
-    cout << "Oh no! The semophore id is not available. Try another!" << endl;
+  semid = sem_create(SEM_KEY , 3);
+  if (semid == -1) {
+    cerr << "Oh no! The semophore id is not available. Try another!" << endl;
     return -1;
   }
-  sem_init(sem_id, mutex, 1);
-	sem_init(sem_id, space, n_jobs);
-	sem_init(sem_id, item, 0);
+  sem_init(semid, MUTEX, 1);
+	sem_init(semid, SPACE, n_jobs);
+	sem_init(semid, ITEM, 0);
+  sem_init(semid, PID, 1);
+  sem_init(semid, CID, 1);
 
   // Create the required producers and consumers
+  pthread_t p_id_list[n_producer];
+  pthread_t c_id_list[n_consumer];
 
-  // Quit, but ensure that there is process clean-up.
-  // Clean semaphores
+  for (int i = 0; i < n_producer; i++) {
+    sem_wait(semid, PID);
+    pthread_create(&p_id_list[i], NULL, producer, NULL);
+  }
 
+  for (int i = 0; i < n_consumer; i++) {
+    sem_wait(semid, CID);
+    pthread_create(&c_id_list[i], NULL, consumer, NULL);
+  }
+
+  // Clean up all the processes.
+  for (int i = 0; i < n_producer; i++) {
+    pthread_join(p_id_list[i], NULL);
+  }
+
+  for (int i = 0; i < n_consumer; i++) {
+    pthread_join(c_id_list[i], NULL);
+  }
   
-  
-  pthread_t producerid;
-  int parameter = 5;
-
-  pthread_create (&producerid, NULL, producer, (void *) &parameter);
-
-  pthread_join (producerid, NULL);
-
-  sem_close(sem_id);
+  // Clean semaphores.
+  delete job_buffer;
+  sem_close(semid);
 
   return 0;
 }
@@ -91,20 +91,30 @@ up (item);
 }
 end producer; 
 */
-void *producer (void *parameter) 
+void *producer (void *input_p_id) 
 {
+  sem_wait(semid, PID);
+  p_id += 1;
+  int curr_p_id = p_id;
+  sem_signal(semid, PID);
 
-  // TODO
-
-  int *param = (int *) parameter;
-
-  cout << "Parameter = " << *param << endl;
-
-  sleep (1);
-
-  cout << "\nThat was a good sleep - thank you \n" << endl;
-
-  pthread_exit(0);
+  int jobs_remaining = n_jobs;
+  while(jobs_remaining) {
+    if(sem_wait_timeout(semid, SPACE)) {
+    cerr << "Producer(" << curr_p_id << "): : No more jobs to generate." << endl;
+    pthread_exit(0);
+    }
+    sem_wait(semid, MUTEX);
+    job_buffer[in] = rand() % 10 + 1;
+    in = (in + 1) % n_jobs;
+    cerr << "Producer(" << curr_p_id << "): Job id " << in + 1;
+    cerr << " duration " << job_buffer[in] << endl;
+    sem_signal(semid, MUTEX);
+    sem_signal(semid, ITEM);
+    jobs_remaining--;
+    sleep (rand() % 5 + 1);
+  }
+  pthread_exit(0); // rm
 }
 
 /*
@@ -119,10 +129,30 @@ consume item;
 }
 end consumer;
 */
-void *consumer (void *id) 
+void *consumer (void *input_c_id)
 {
-    // TODO 
+  sem_wait(semid, CID);
+  c_id += 1;
+  int curr_c_id = c_id;
+  sem_signal(semid, CID);
 
-  pthread_exit (0);
-
+  int curr_job_id;
+  int curr_job;
+  while(1) { //rm
+    if (sem_wait_timeout(semid, ITEM)){
+      cerr << "Consumer(" << curr_c_id << "): : No more jobs left." << endl;
+      pthread_exit (0);
+    };
+    sem_wait(semid, MUTEX);
+    curr_job_id = out + 1;
+    curr_job = job_buffer[out];
+    out = (out + 1) % n_jobs;
+    sem_signal(semid, MUTEX);
+    sem_signal(semid, SPACE);
+    
+    cerr << "Consumer(" << curr_c_id << "): " << curr_job_id ;
+    cerr << " executing sleep duration " << curr_job << endl;
+    sleep(curr_job);
+    cerr << "Consumer(" << curr_c_id << "): Job id " << curr_job_id << " completed" << endl;
+  }
 }

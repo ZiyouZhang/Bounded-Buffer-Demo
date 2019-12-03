@@ -10,12 +10,15 @@
 
 # include "helper.h"
 
-int check_arg (const char *buffer)
+#define TIMEOUT 20
+
+timespec timeout = {TIMEOUT, 0};
+
+int check_arg (char *buffer)
 {
   int i, num = 0, temp = 0;
   if (strlen (buffer) == 0)
     return -1;
-  cout << strlen (buffer) << " len " << endl;
   for (i=0; i < (int) strlen (buffer); i++)
   {
     temp = 0 + buffer[i];
@@ -43,20 +46,28 @@ int sem_init (int id, int num, int value)
   return 0;
 }
 
-void sem_wait (int id, short unsigned int num)
+int sem_wait (int id, short unsigned int num)
 {
   struct sembuf op[] = {
     {num, -1, SEM_UNDO}
   };
-  semop (id, op, 1);
+  return semop(id, op, 1);
 }
 
-void sem_signal (int id, short unsigned int num)
+int sem_wait_timeout (int id, short unsigned int num)
+{
+  struct sembuf op[] = {
+    {num, -1, SEM_UNDO}
+  };
+  return semtimedop(id, op, 1, &timeout);
+}
+
+int sem_signal (int id, short unsigned int num)
 {
   struct sembuf op[] = {
     {num, 1, SEM_UNDO}
   };
-  semop (id, op, 1);
+  return semop(id, op, 1);
 }
 
 int sem_close (int id)
