@@ -18,7 +18,6 @@ int s_queue, in = 0, out = 0, semid, n_jobs;
 
 int main (int argc, char **argv)
 {
-
   int n_producer = 0, n_consumer = 0;
 
   // Read in and check arguments.
