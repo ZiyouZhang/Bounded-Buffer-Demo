@@ -49,12 +49,12 @@ int main (int argc, char **argv)
     sem_close(semid);
     return -1;
   }
-	if (sem_init(semid, SPACE, s_queue)) {
+  if (sem_init(semid, SPACE, s_queue)) {
     fprintf(stderr, "Oh no! SPACE initialisation failed!\n");
     sem_close(semid);
     return -1;
   }
-	if (sem_init(semid, ITEM, 0)) {
+  if (sem_init(semid, ITEM, 0)) {
     fprintf(stderr, "Oh no! ITEM initialisation failed!\n");
     sem_close(semid);
     return -1;
