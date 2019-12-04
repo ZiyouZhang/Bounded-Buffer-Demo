@@ -3,13 +3,16 @@
 #define MUTEX 0
 #define SPACE 1
 #define ITEM 2
-#define PID 3
-#define CID 4
 
 void* producer (void* id);
 void* consumer (void* id);
 
 // Initialise job queue and parameters.
+// s_queue: the size of the queue
+// in: the position for producer to put the job
+// out: the position for consumer to get the job from
+// semid: the semaphore id used for this program
+// n_jobs: the number of jobs each producer would produce
 int* job_buffer;
 int s_queue, in = 0, out = 0, semid, n_jobs;
 
@@ -19,7 +22,7 @@ int main (int argc, char **argv)
   int n_producer = 0, n_consumer = 0;
 
   // Read in and check arguments.
-  if (argc != 5){
+  if (argc != 5) {
     fprintf(stderr, "Oh no! Please supply correct number of arguments.\n");
     return -1;
   }
@@ -43,14 +46,17 @@ int main (int argc, char **argv)
   }
   if (sem_init(semid, MUTEX, 1)) {
     fprintf(stderr, "Oh no! MUTEX initialisation failed!\n");
+    sem_close(semid);
     return -1;
   }
 	if (sem_init(semid, SPACE, s_queue)) {
     fprintf(stderr, "Oh no! SPACE initialisation failed!\n");
+    sem_close(semid);
     return -1;
   }
 	if (sem_init(semid, ITEM, 0)) {
     fprintf(stderr, "Oh no! ITEM initialisation failed!\n");
+    sem_close(semid);
     return -1;
   }
 
@@ -69,12 +75,14 @@ int main (int argc, char **argv)
   for (int i = 0; i < n_producer; i++) {
     if (pthread_create(&producerid_list[i], NULL, producer, &pid_list[i])) {
       fprintf(stderr, "Oh no! Creation of producer thread %i failed!\n", pid_list[i]);
+      sem_close(semid);
       return -1;
     }
   }
   for (int i = 0; i < n_consumer; i++) {
     if (pthread_create(&consumerid_list[i], NULL, consumer, &cid_list[i])) {
       fprintf(stderr, "Oh no! Creation of consumer thread %i failed!\n", cid_list[i]);
+      sem_close(semid);
       return -1;
     }
   }
@@ -83,12 +91,14 @@ int main (int argc, char **argv)
   for (int i = 0; i < n_producer; i++) {
     if (pthread_join(producerid_list[i], NULL)) {
       fprintf(stderr, "Oh no! Producer thread %i refused to join!\n", pid_list[i]);
+      sem_close(semid);
       return -1;
     }
   }
   for (int i = 0; i < n_consumer; i++) {
     if (pthread_join(consumerid_list[i], NULL)) {
       fprintf(stderr, "Oh no! Consumer thread %i refused to join!\n", cid_list[i]);
+      sem_close(semid);
       return -1;
     }
   }
@@ -125,11 +135,11 @@ void* producer (void* input_p_id)
     fprintf(stderr, "Producer(%i): Job id %i duration %i.\n", *curr_p_id, in + 1, job_buffer[in]);
     in = (in + 1) % s_queue;
 
-    if (sem_signal(semid, MUTEX)){
+    if (sem_signal(semid, MUTEX)) {
       fprintf(stderr, "Oh no! Releasing MUTEX in Producer(%i) failed!\n", job_buffer[in]);
       pthread_exit(0);
     }
-    if (sem_signal(semid, ITEM)){
+    if (sem_signal(semid, ITEM)) {
       fprintf(stderr, "Oh no! Updating ITEM in Producer(%i) failed!\n", job_buffer[in]);
       pthread_exit(0);
     }
@@ -152,7 +162,7 @@ void* consumer (void* input_c_id)
   int curr_job;
 
   while(true) {
-    if (sem_wait_timeout(semid, ITEM)){
+    if (sem_wait_timeout(semid, ITEM)) {
       fprintf(stderr, "Consumer(%i): No more jobs left.\n", *curr_c_id);
       pthread_exit (0);
     }
@@ -165,7 +175,7 @@ void* consumer (void* input_c_id)
     curr_job = job_buffer[out];
     out = (out + 1) % s_queue;
 
-    if (sem_signal(semid, MUTEX)){
+    if (sem_signal(semid, MUTEX)) {
       fprintf(stderr, "Oh no! Releasing MUTEX in Consumer(%i) failed!\n", *curr_c_id);
       pthread_exit(0);
     }

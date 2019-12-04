@@ -9,7 +9,7 @@ main.o: helper.cc helper.h main.cc Makefile
 	$(CC) -c helper.cc main.cc
 
 tidy:
-	rm -f *.o core
+	rm -f *.o
 
 clean:
-	rm -f main producer consumer *.o core
+	rm -f main *.o
