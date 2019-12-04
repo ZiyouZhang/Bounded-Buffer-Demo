@@ -1,9 +1,8 @@
 /******************************************************************
  * Header file for the helper functions. This file includes the
  * required header files, as well as the function signatures and
- * the semaphore values (which are to be changed as needed).
+ * the semaphore values.
  ******************************************************************/
-
 
 # include <stdio.h>
 # include <stdlib.h>
@@ -21,12 +20,12 @@
 # include <iostream>
 using namespace std;
 
-# define SEM_KEY 0x42 // Change this number as needed
+# define SEM_KEY 0x424242
 
 union semun {
-    int val;               /* used for SETVAL only */
-    struct semid_ds *buf;  /* used for IPC_STAT and IPC_SET */
-    ushort *array;         /* used for GETALL and SETALL */
+    int val;               // used for SETVAL only
+    struct semid_ds *buf;  // used for IPC_STAT and IPC_SET
+    ushort *array;         // used for GETALL and SETALL
 };
 
 int check_arg (char *);
